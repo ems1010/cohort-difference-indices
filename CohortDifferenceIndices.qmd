@@ -20,9 +20,9 @@ format:
     editor: visual
 ---
 
-# Useful code for applying the Cohort and Difference Indices
+# Overview
 
-This document presents some code chunks that can be used to generate Cohort and Differences Indices from panel data. The approach can be applied to either standalone panel data or panel data combined with complementary trend data.
+This document presents some code chunks that can be used to generate Cohort and Differences Indices from panel data. The approach can be applied to either standalone panel data, or panel data combined with complementary trend data.
 
 ## Used libraries
 
@@ -36,6 +36,8 @@ library(lme4)
 library(confintr)
 ```
 
+# Generating Cohort Indices
+
 ## Example linear mixed effects model
 
 The example model below is a linear mixed effects model with a continuous dependent variable (normalised F1 onset measurements). Relevant social and linguistic factors are included as fixed effects, and speaker and word are random intercepts.
@@ -47,15 +49,23 @@ As noted in the manuscript, it is essential that panelists are treated as differ
 #| output: false
 
 model_name <- lmer(
-  normalised_F1_onset ~
+  # Lobanov normalised F1 at the onset
+  F1_lob_20 ~
+  # age
     age +
-    class +
+  # socioeconomic status/class
+    ses +
+  # gender
     gender +
-    following_context +
-    previous_context +
-    speech_rate +
-    vowel_duration +
+  # following context of the vowel
+    vowelSpecificContext +
+  # preceding context of the vowel
+    previousEnvironment +
+  # vowel duration
+    duration +
+  # random intercept for speaker
     (1 | speaker) +
+  # random intercept for word
     (1 | word),
   data = dataframe
 )
@@ -63,7 +73,9 @@ model_name <- lmer(
 
 ## Extracting random effects and coefficients
 
-The chunk below will extract the random intercept values for each speaker. These values are on a -1 to 1 scale and represent individual speakers' distance from the model's estimated mean of the dependent variable. Each value represents a speaker's distance from the estimated dependent variable for the relevant cohort.
+The chunk below will extract the random intercept values for each speaker. These values are scaled so that 0 represents the model's estimated mean of the dependent variable (i.e., the model intercept). The intercept values represent individual speakers' distance from the model intercept once the independent variables have been taken into account (i.e., above and beyond the specified fixed effects). Each value represents a speaker's distance from the estimated dependent variable for the relevant cohort.
+
+As I normalised the F1 and F2 values using Labonov normalisation prior to the analysis, the values in my analysis are on a -1 to 1 scale. If you intend to do a multi-variable analysis, you might consider scaling or normalising your dependent variables to improve the comparability of the random intercepts from each variable.
 
 ```{r extract-random-effects}
 #| eval: false
@@ -92,7 +104,7 @@ random_effects$Intercept_Adjusted <-
   random_effects$Intercept * (-1)
 ```
 
-## Calculating Difference Indices
+# Calculating Difference Indices
 
 Once you have the Cohort Indices, you will need to select only the Indices from speakers with more than one intercept. The Difference Indices are most easily calculate using data in a wide format (see below), which can be created using the `pivot_wider()` from `tidyverse` or `dcast()` from `data.table` in R.
 
@@ -112,7 +124,7 @@ dataframe$Difference_Index <-
   dataframe$RandomIntercept2 - dataframe$RandomIntercept1
 ```
 
-## Testing a correlation between position relative to change and degree and direction of change over time
+# Testing a correlation between position relative to change and degree and direction of change over time
 
 It is then very straightforward to test the correlation between earlier linguistic behaviour (Cohort Index 1) and direction and extent of change in real time (Difference Index). I used `cor.test` from the `stats` package but there are a range of options. I also used `ci_cor()` from `confintr` to calculate confidence intervals based on a bootstrap procedure.
 
